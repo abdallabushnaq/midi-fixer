@@ -90,8 +90,8 @@ jobs:
       # Rename each binary so filenames are unique in the release
       - name: Prepare release assets
         run: |
-          mv artifacts/midi-fixer-linux/midi-fixer   artifacts/midi-fixer-linux
-          mv artifacts/midi-fixer-macos/midi-fixer   artifacts/midi-fixer-macos
+          mv artifacts/midi-fixer-linux/midi-fixer       artifacts/midi-fixer-linux-bin
+          mv artifacts/midi-fixer-macos/midi-fixer       artifacts/midi-fixer-macos-bin
           mv artifacts/midi-fixer-windows/midi-fixer.exe artifacts/midi-fixer-windows.exe
 
       - name: Create GitHub Release
@@ -99,7 +99,7 @@ jobs:
         with:
           generate_release_notes: true
           files: |
-            artifacts/midi-fixer-linux
-            artifacts/midi-fixer-macos
+            artifacts/midi-fixer-linux-bin
+            artifacts/midi-fixer-macos-bin
             artifacts/midi-fixer-windows.exe
 

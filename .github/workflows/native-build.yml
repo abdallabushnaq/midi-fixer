@@ -1,0 +1,100 @@
+name: Build Native Images
+
+on:
+  push:
+    branches: [ "main" ]
+    tags: [ "v*" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Native build — ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: linux
+            runner: ubuntu-latest
+            artifact-name: midi-fixer-linux
+            binary: midi-fixer
+          - os: macos
+            runner: macos-latest
+            artifact-name: midi-fixer-macos
+            binary: midi-fixer
+          - os: windows
+            runner: windows-latest
+            artifact-name: midi-fixer-windows
+            binary: midi-fixer.exe
+
+    steps:
+      # ── Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── Set up GraalVM JDK 25 ─────────────────────────────────────────────
+      - name: Set up GraalVM (JDK 25)
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '25'
+          distribution: 'graalvm'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Cache Maven local repository ──────────────────────────────────────
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      # ── Build & test (JVM) ────────────────────────────────────────────────
+      - name: Run tests (JVM)
+        run: mvn --no-transfer-progress verify
+
+      # ── Compile native image ───────────────────────────────────────────────
+      - name: Build native image
+        run: mvn --no-transfer-progress -Pnative package -DskipTests
+
+      # ── Upload binary as workflow artifact ────────────────────────────────
+      - name: Upload binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: target/${{ matrix.binary }}
+          if-no-files-found: error
+
+  # ── Create a GitHub Release when a version tag is pushed ──────────────────
+  release:
+    name: GitHub Release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      # Rename each binary so filenames are unique in the release
+      - name: Prepare release assets
+        run: |
+          mv artifacts/midi-fixer-linux/midi-fixer   artifacts/midi-fixer-linux
+          mv artifacts/midi-fixer-macos/midi-fixer   artifacts/midi-fixer-macos
+          mv artifacts/midi-fixer-windows/midi-fixer.exe artifacts/midi-fixer-windows.exe
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            artifacts/midi-fixer-linux
+            artifacts/midi-fixer-macos
+            artifacts/midi-fixer-windows.exe
+

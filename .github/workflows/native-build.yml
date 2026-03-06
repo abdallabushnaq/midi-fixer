@@ -59,6 +59,11 @@ jobs:
       - name: Build native image
         run: mvn --no-transfer-progress -Pnative package -DskipTests
 
+      # ── Mark binary as executable (Linux / macOS) ─────────────────────────
+      - name: Set executable bit
+        if: matrix.os != 'windows'
+        run: chmod +x target/${{ matrix.binary }}
+
       # ── Upload binary as workflow artifact ────────────────────────────────
       - name: Upload binary
         uses: actions/upload-artifact@v4

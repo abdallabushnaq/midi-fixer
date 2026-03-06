@@ -1,5 +1,8 @@
 # midi-fixer
 
+[![Build Native Images](https://github.com/abdallauno1/midi-fixer/actions/workflows/native-build.yml/badge.svg)](https://github.com/abdallauno1/midi-fixer/actions/workflows/native-build.yml)
+[![GitHub Release](https://img.shields.io/github/v/release/abdallauno1/midi-fixer?label=latest%20release)](https://github.com/abdallauno1/midi-fixer/releases/latest)
+
 CLI tool to detect and fix overlapping notes in MIDI files.
 
 A note "overlaps itself" when its duration extends past the start of the same
@@ -8,11 +11,77 @@ note so its NOTE_OFF fires exactly one tick before the next NOTE_ON.
 
 ---
 
+## The Problem — Visualised
+
+MIDI notes on the **same pitch and channel** must not overlap.
+Many DAWs and synths behave unpredictably when a second NOTE_ON arrives before
+the previous NOTE_OFF fires: the voice may cut out, retrigger, or become stuck.
+
+### Before — overlapping notes ❌
+
+```
+Pitch 60  ┤                                                           │
+          │  [═══════════ NOTE A ════════════════╪══overlaps══]       │
+          │                                      │                    │
+          │                                   [══╪═══ NOTE B ══════]  │
+          │                                      │                    │
+          ├──────────────────────────────────────┼────────────────────┤ ticks →
+          0       480      960     1440     1920  ↑  2400     2880
+                                             NOTE_B starts here,
+                                             but NOTE_A hasn't ended yet
+```
+
+### After — fixed ✅
+
+```
+Pitch 60  ┤                                                           │
+          │  [═══════════ NOTE A ════════════]·  │                    │
+          │                                   ↑  │                    │
+          │                            NOTE_OFF  │                    │
+          │                           moved to   [══ NOTE B ══════]   │
+          │                         T_B − 1      │                    │
+          ├─────────────────────────────────────────────────────────── ticks →
+          0       480      960     1440     1920     2400     2880
+```
+
+### Rule applied
+
+```
+D_fixed  =  max(1,  T_next  −  T_current  −  1)
+                    └──────────────────────┘
+                    gap between the two NOTE_ONs
+```
+
+> Only notes of the **same pitch on the same channel** are compared.
+> Notes on different pitches or channels can freely overlap in time — that is normal polyphony.
+
+---
+
+## Download pre-built binaries
+
+No JVM needed — grab the native executable for your platform from the
+[**latest GitHub Release**](https://github.com/abdallauno1/midi-fixer/releases/latest):
+
+| Platform | File to download         |
+|----------|--------------------------|
+| Linux    | `midi-fixer-linux`       |
+| macOS    | `midi-fixer-macos`       |
+| Windows  | `midi-fixer-windows.exe` |
+
+> **Linux / macOS:** mark the file executable after downloading:
+> ```bash
+> chmod +x midi-fixer-linux   # or midi-fixer-macos
+> ```
+
+Releases are created automatically when a `v*` tag is pushed to `main`.
+
+---
+
 ## Requirements
 
-| Build target | Requirement |
-|---|---|
-| Fat JAR (JVM) | JDK 25+ |
+| Build target  | Requirement                                                                        |
+|---------------|------------------------------------------------------------------------------------|
+| Fat JAR (JVM) | JDK 25+                                                                            |
 | Native binary | [Oracle GraalVM for JDK 25](https://www.graalvm.org/downloads/) set as `JAVA_HOME` |
 
 ---

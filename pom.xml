@@ -1,0 +1,242 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>org.example</groupId>
+    <artifactId>midi-fixer</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <name>midi-fixer</name>
+    <description>CLI tool to detect and fix overlapping notes in MIDI files</description>
+
+    <properties>
+        <java.version>25</java.version>
+        <maven.compiler.source>${java.version}</maven.compiler.source>
+        <maven.compiler.target>${java.version}</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <!-- Dependency versions -->
+        <picocli.version>4.7.6</picocli.version>
+        <lombok.version>1.18.42</lombok.version>
+        <slf4j.version>2.0.16</slf4j.version>
+        <junit.version>5.11.4</junit.version>
+
+        <!-- Plugin versions -->
+        <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
+        <maven-shade-plugin.version>3.6.0</maven-shade-plugin.version>
+        <maven-surefire-plugin.version>3.5.2</maven-surefire-plugin.version>
+        <native-maven-plugin.version>0.10.3</native-maven-plugin.version>
+
+        <mainClass>org.example.MidiFixerApp</mainClass>
+    </properties>
+
+    <dependencies>
+        <!-- CLI framework -->
+        <dependency>
+            <groupId>info.picocli</groupId>
+            <artifactId>picocli</artifactId>
+            <version>${picocli.version}</version>
+        </dependency>
+
+        <!-- Logging -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${slf4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>${slf4j.version}</version>
+        </dependency>
+
+        <!-- Lombok (provided scope — compile-time only) -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Testing -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Compiler: Lombok first, then picocli-codegen for GraalVM reflect-config -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${maven-compiler-plugin.version}</version>
+                <configuration>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
+                    <annotationProcessorPaths>
+                        <!-- Lombok must come first -->
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                        <!-- picocli-codegen generates META-INF/native-image reflect-config.json -->
+                        <path>
+                            <groupId>info.picocli</groupId>
+                            <artifactId>picocli-codegen</artifactId>
+                            <version>${picocli.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                    <compilerArgs>
+                        <arg>-Aproject=${project.groupId}/${project.artifactId}</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
+
+            <!-- Fat JAR for JVM execution -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>${maven-shade-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <finalName>${project.artifactId}-${project.version}-fat</finalName>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>${mainClass}</mainClass>
+                                </transformer>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                            </transformers>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+        <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${maven-surefire-plugin.version}</version>
+                <configuration>
+                    <!-- Exclude integration tests — those are handled by failsafe -->
+                    <excludes>
+                        <exclude>**/*IT.java</exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+
+            <!-- Failsafe for JUnit 5 integration tests (*IT.java) -->
+            <!-- Run with: mvn verify -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <version>${maven-surefire-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>integration-test</goal>
+                            <goal>verify</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <includes>
+                        <include>**/*IT.java</include>
+                    </includes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <!-- ================================================================
+             native profile: builds a self-contained native executable.
+             Requires GraalVM JDK 25 set as JAVA_HOME.
+             Usage: mvn -Pnative package
+             ================================================================ -->
+        <profile>
+            <id>native</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.graalvm.buildtools</groupId>
+                        <artifactId>native-maven-plugin</artifactId>
+                        <version>${native-maven-plugin.version}</version>
+                        <extensions>true</extensions>
+                        <executions>
+                            <execution>
+                                <id>build-native</id>
+                                <goals>
+                                    <goal>compile-no-fork</goal>
+                                </goals>
+                                <phase>package</phase>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <imageName>${project.artifactId}</imageName>
+                            <mainClass>${mainClass}</mainClass>
+                            <buildArgs>
+                                <!-- Reduce binary size -->
+                                <buildArg>--no-fallback</buildArg>
+                                <!-- Initialize javax.sound.midi at build time where safe -->
+                                <buildArg>--initialize-at-build-time=org.slf4j</buildArg>
+                                <buildArg>-H:+ReportExceptionStackTraces</buildArg>
+                            </buildArgs>
+                            <!-- Pull in community-maintained reflection metadata -->
+                            <metadataRepository>
+                                <enabled>true</enabled>
+                            </metadataRepository>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- ================================================================
+             native-agent profile: runs the GraalVM tracing agent to
+             auto-generate native-image config from a live run.
+             Usage: mvn -Pnative-agent -Dexec.args="input.mid" package exec:exec
+             Output: src/main/resources/META-INF/native-image/
+             ================================================================ -->
+        <profile>
+            <id>native-agent</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.4.1</version>
+                        <configuration>
+                            <executable>java</executable>
+                            <arguments>
+                                <argument>-agentlib:native-image-agent=config-output-dir=src/main/resources/META-INF/native-image</argument>
+                                <argument>-jar</argument>
+                                <argument>${project.build.directory}/${project.artifactId}-${project.version}-fat.jar</argument>
+                                <argument>${exec.args}</argument>
+                            </arguments>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>

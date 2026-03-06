@@ -1,7 +1,7 @@
 # midi-fixer
 
-[![Build Native Images](https://github.com/abdallauno1/midi-fixer/actions/workflows/native-build.yml/badge.svg)](https://github.com/abdallauno1/midi-fixer/actions/workflows/native-build.yml)
-[![GitHub Release](https://img.shields.io/github/v/release/abdallauno1/midi-fixer?label=latest%20release)](https://github.com/abdallauno1/midi-fixer/releases/latest)
+[![Build Native Images](https://github.com/abdallabushnaq/midi-fixer/actions/workflows/native-build.yml/badge.svg)](https://github.com/abdallabushnaq/midi-fixer/actions/workflows/native-build.yml)
+[![GitHub Release](https://img.shields.io/github/v/release/abdallabushnaq/midi-fixer?label=latest%20release)](https://github.com/abdallabushnaq/midi-fixer/releases/latest)
 
 CLI tool to detect and fix overlapping notes in MIDI files.
 
@@ -60,7 +60,7 @@ D_fixed  =  max(1,  T_next  −  T_current  −  1)
 ## Download pre-built binaries
 
 No JVM needed — grab the native executable for your platform from the
-[**latest GitHub Release**](https://github.com/abdallauno1/midi-fixer/releases/latest):
+[**latest GitHub Release**](https://github.com/abdallabushnaq/midi-fixer/releases/latest):
 
 | Platform | File to download         |
 |----------|--------------------------|
